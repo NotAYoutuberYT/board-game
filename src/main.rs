@@ -1,7 +1,3 @@
-mod uni;
-mod player;
-mod game;
+mod village;
 
-fn main() {
-    print!("hello world")
-}
+fn main() {}
