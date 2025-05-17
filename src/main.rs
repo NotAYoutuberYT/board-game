@@ -1,3 +1,7 @@
+mod uni;
+mod player;
+mod game;
+
 fn main() {
-    println!("Hello, world!");
+    print!("hello world")
 }
