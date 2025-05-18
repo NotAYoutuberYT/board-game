@@ -1,8 +1,6 @@
-use strum_macros::AsRefStr;
-
 use crate::village::{Village, VillagerType};
 
-#[derive(Clone, Copy, AsRefStr)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Action {
     PostRegister,
     PostFlare,
@@ -10,21 +8,21 @@ pub enum Action {
     Visit,
 }
 
-#[derive(Clone, Copy, AsRefStr)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Operation {
     Increment,
     Decrement,
     SetValue(u8),
 }
 
-#[derive(Clone, Copy, AsRefStr)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Condition {
     VillagerIsAlive,
     VillagerIsDead,
     RegisterEq(u8),
 }
 
-#[derive(Clone, AsRefStr)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Instruction {
     Action(Action),
     Operation(Operation),
@@ -63,16 +61,36 @@ pub struct Mini {
 }
 
 impl Mini {
-    pub fn new(starting_location: u8, base_instructions: Instructions) -> Self {
-        Self {
+    pub fn new(starting_location: u8, base_instructions: Instructions, village: &Village) -> Self {
+        let mut mini = Self {
             instruction_stack: base_instructions,
             register: 0,
             status: MiniStatus::Running,
             location: starting_location,
             log: Vec::new(),
+        };
+
+        // "visit" the starting location
+        if village.villager_exists(starting_location) {
+            if village
+                .villager_type(mini.location)
+                .expect("just confirmed villager exists")
+                == VillagerType::Murderer
+            {
+                mini.status = MiniStatus::Destroyed;
+            }
+        } else {
+            mini.status = MiniStatus::Lost;
         }
+
+        mini
     }
 
+    pub fn log(&self) -> &EventLog {
+        &self.log
+    }
+
+    /// pop the top instruction off the instruction stack and run it
     pub fn run_instruction(&mut self, village: &mut Village) {
         let instruction = match self.instruction_stack.pop() {
             Some(instruction) => instruction,
@@ -161,6 +179,9 @@ impl Mini {
         }
     }
 
+    /// keep running instructions on the instruction stack until
+    /// the state changes from running. the first instruction
+    /// should be visit.
     fn run_until_completion(&mut self, village: &mut Village) {
         // make sure we don't start at an invalid location
         if !village.villager_exists(self.location) {
@@ -190,10 +211,10 @@ mod test {
 
     #[test]
     fn register_operations() {
-        let mut village = Village::new_deterministic(Vec::new());
+        let mut village = Village::new_deterministic(vec![Villager::new(VillagerType::Normal, 1)]);
 
         let mut mini = Mini::new(
-            0,
+            1,
             vec![
                 Instruction::Operation(Operation::Decrement),
                 Instruction::Operation(Operation::SetValue(10)),
@@ -201,6 +222,7 @@ mod test {
                 Instruction::Operation(Operation::Increment),
                 Instruction::Operation(Operation::Increment),
             ],
+            &village,
         );
 
         assert_eq!(mini.register, 0);
@@ -222,7 +244,11 @@ mod test {
     fn register_safety() {
         let mut village = Village::new_deterministic(Vec::new());
 
-        let mut mini = Mini::new(0, vec![Instruction::Operation(Operation::Decrement)]);
+        let mut mini = Mini::new(
+            0,
+            vec![Instruction::Operation(Operation::Decrement)],
+            &village,
+        );
 
         assert_eq!(mini.register, 0);
         mini.run_instruction(&mut village);
@@ -235,6 +261,7 @@ mod test {
                 Instruction::Operation(Operation::Increment),
                 Instruction::Operation(Operation::SetValue(u8::MAX)),
             ],
+            &village,
         );
 
         mini.run_instruction(&mut village);
@@ -259,6 +286,7 @@ mod test {
                 Instruction::Action(Action::Visit),
                 Instruction::Operation(Operation::SetValue(2)),
             ],
+            &village,
         );
 
         assert_eq!(mini.location, 4);
@@ -290,6 +318,7 @@ mod test {
                 Instruction::Operation(Operation::SetValue(2)),
                 Instruction::Action(Action::PostRegister),
             ],
+            &village,
         );
 
         mini.run_instruction(&mut village);
@@ -327,6 +356,7 @@ mod test {
                 Instruction::Action(Action::Visit),
                 Instruction::Operation(Operation::SetValue(5)),
             ],
+            &village,
         );
 
         mini.run_instruction(&mut village);
@@ -347,6 +377,7 @@ mod test {
                 Instruction::Operation(Operation::Increment),
                 Instruction::Break,
             ],
+            &village,
         );
 
         mini.run_instruction(&mut village);
@@ -358,6 +389,7 @@ mod test {
                 Instruction::Operation(Operation::Increment),
                 Instruction::Operation(Operation::Increment),
             ],
+            &village,
         );
 
         mini.run_instruction(&mut village);
@@ -391,6 +423,7 @@ mod test {
                     vec![Instruction::Action(Action::PostRegister)],
                 ),
             ],
+            &village,
         );
 
         mini.run_until_completion(&mut village);
@@ -417,6 +450,7 @@ mod test {
                     vec![Instruction::Action(Action::PostRegister)],
                 ),
             ],
+            &village,
         );
 
         mini.run_until_completion(&mut village);
@@ -438,6 +472,7 @@ mod test {
                     Instruction::Condition(Condition::RegisterEq(10), vec![Instruction::Break]),
                 ],
             )],
+            &village,
         );
 
         mini.run_until_completion(&mut village);
@@ -459,6 +494,7 @@ mod test {
                 10, // this should usually be u8, but this makes the test more convienent
                 vec![Instruction::Action(Action::PostFlare)],
             )],
+            &village,
         );
 
         mini.run_until_completion(&mut village);

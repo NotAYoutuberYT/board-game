@@ -36,7 +36,9 @@
             pkgs.mold-wrapped
           ];
 
-        buildInputs = [ ];
+        buildInputs = [
+          pkgs.xdg-desktop-portal-wlr
+        ];
 
         nativeCheckInputs = [ pkgs.cargo-nextest ];
       in

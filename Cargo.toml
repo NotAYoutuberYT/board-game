@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+ariadne = { version = "0.5.1", features = ["auto-color"] }
 chumsky = "0.10.1"
 rand = "0.9.1"
-strum = "0.27.1"
-strum_macros = "0.27.1"
+rfd = { version = "0.15.3", features = ["xdg-portal"] }
 thiserror = "2.0.12"

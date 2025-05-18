@@ -1,0 +1,5 @@
+repeat {
+    if alive { incr }
+    if eq 5 { break }
+    post register
+}
