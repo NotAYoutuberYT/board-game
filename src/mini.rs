@@ -1,5 +1,6 @@
 use crate::village::{Village, VillagerType};
 
+/// an action a mini can take
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Action {
     PostRegister,
@@ -8,6 +9,7 @@ pub enum Action {
     Visit,
 }
 
+/// an operation on a mini's register
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Operation {
     Increment,
@@ -15,6 +17,7 @@ pub enum Operation {
     SetValue(u8),
 }
 
+/// a conditional
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Condition {
     VillagerIsAlive,
@@ -22,18 +25,20 @@ pub enum Condition {
     RegisterEq(u8),
 }
 
+/// any instruction a mini can run
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Instruction {
     Action(Action),
     Operation(Operation),
     Condition(Condition, Instructions),
-    /// decrement u8 each iteration; if it hits zero, break
+    /// for infinite recursion protetction, decrement u8 each iteration; if it hits zero, break.
     Repeat(u8, Instructions),
     Break,
 }
 
 pub type Instructions = Vec<Instruction>;
 
+/// something that can be posted to a mini's log
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Event {
     PostedRegister(u8),
@@ -43,6 +48,7 @@ pub enum Event {
 
 pub type EventLog = Vec<Event>;
 
+/// the status of a mini: running, or various ways for it to stop working
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum MiniStatus {
     Running,
@@ -51,7 +57,10 @@ pub enum MiniStatus {
     Lost,
 }
 
+/// a mini, along with all the information it needs to run:
+/// an instruction stack register, log, etc.
 pub struct Mini {
+    /// becuase this is a stack, the "next" instruction is at the end of the vector
     instruction_stack: Instructions,
     register: u8,
 
@@ -61,6 +70,8 @@ pub struct Mini {
 }
 
 impl Mini {
+    /// construct a new mini. requires a reference to a village so that the mini can
+    /// visit its starting location
     pub fn new(starting_location: u8, base_instructions: Instructions, village: &Village) -> Self {
         let mut mini = Self {
             instruction_stack: base_instructions,
@@ -70,18 +81,7 @@ impl Mini {
             log: Vec::new(),
         };
 
-        // "visit" the starting location
-        if village.villager_exists(starting_location) {
-            if village
-                .villager_type(mini.location)
-                .expect("just confirmed villager exists")
-                == VillagerType::Murderer
-            {
-                mini.status = MiniStatus::Destroyed;
-            }
-        } else {
-            mini.status = MiniStatus::Lost;
-        }
+        mini.visit_villager(village, starting_location);
 
         mini
     }
@@ -90,8 +90,39 @@ impl Mini {
         &self.log
     }
 
+    /// updates location (or becomes lost) and then carries out the
+    /// appropriate action according to the type of the visited villager
+    fn visit_villager(&mut self, village: &Village, location: u8) {
+        if !village.villager_exists(location) {
+            self.status = MiniStatus::Lost;
+            return;
+        }
+
+        self.location = location;
+
+        // if the villager is dead, we shouldn't do anything
+        if village.dead_villager(location).is_some() {
+            return;
+        }
+
+        // do whatever the visited villager's type entails
+        match village
+            .villager_type(location)
+            .expect("just confirmed villager exists")
+        {
+            VillagerType::Murderer => {
+                self.status = MiniStatus::Destroyed;
+                self.log = Vec::new();
+            }
+            VillagerType::Afraid => self.status = MiniStatus::Destroyed,
+            _ => (),
+        }
+    }
+
     /// pop the top instruction off the instruction stack and run it
-    pub fn run_instruction(&mut self, village: &mut Village) {
+    fn run_instruction(&mut self, village: &mut Village) {
+        // get the next instruction. if there are no more instructions, set
+        // our status to done
         let instruction = match self.instruction_stack.pop() {
             Some(instruction) => instruction,
             None => {
@@ -100,33 +131,21 @@ impl Mini {
             }
         };
 
+        // match the instruction against every possible value and
+        // do whatever is required by the instruction
         match instruction {
             Instruction::Action(Action::PostRegister) => {
                 self.log.push(Event::PostedRegister(self.register))
             }
             Instruction::Action(Action::PostFlare) => self.log.push(Event::PostedFlare),
             Instruction::Action(Action::Detonate) => {
-                let _ = village.kill_villager(self.location);
+                let _ = village.kill_villager(self.register);
                 self.status = MiniStatus::Destroyed;
             }
-            Instruction::Action(Action::Visit) => {
-                if village.villager_exists(self.register) {
-                    self.location = self.register;
-
-                    if village
-                        .villager_type(self.register)
-                        .expect("just confirmed villager exists")
-                        == VillagerType::Murderer
-                    {
-                        self.status = MiniStatus::Destroyed;
-                        return;
-                    }
-                } else {
-                    self.status = MiniStatus::Lost;
-                }
-            }
+            Instruction::Action(Action::Visit) => self.visit_villager(village, self.register),
 
             Instruction::Operation(Operation::Increment) => {
+                // destory the mini if we'd encounter overflow
                 if self.register == u8::MAX {
                     self.status = MiniStatus::Destroyed
                 } else {
@@ -134,6 +153,7 @@ impl Mini {
                 }
             }
             Instruction::Operation(Operation::Decrement) => {
+                // destroy the mini if we'd encounter underflow
                 if self.register == 0 {
                     self.status = MiniStatus::Destroyed
                 } else {
@@ -143,22 +163,30 @@ impl Mini {
             Instruction::Operation(Operation::SetValue(value)) => self.register = value,
 
             Instruction::Condition(Condition::VillagerIsAlive, instructions) => {
+                // if the villager we're at is alive, push the conditional
+                // instructions to the stack
                 if village.living_villager(self.location).is_some() {
                     self.instruction_stack.extend(instructions.into_iter());
                 }
             }
             Instruction::Condition(Condition::VillagerIsDead, instructions) => {
+                // if the villager we're at is dead, push the conditional
+                // instructions to the stack
                 if village.dead_villager(self.location).is_some() {
                     self.instruction_stack.extend(instructions.into_iter());
                 }
             }
             Instruction::Condition(Condition::RegisterEq(value), instructions) => {
+                // if register is equal to the test value, push the conditional instructions to the stack
                 if self.register == value {
                     self.instruction_stack.extend(instructions.into_iter());
                 }
             }
 
             Instruction::Repeat(iterations, instructions) => {
+                // if we're not out of iterations (i.e. we aren't facing infinite recursion),
+                // put the repeated instructions to the stack along with a copy of this
+                // repeat command with the remaining iteration count decreased by one
                 if iterations != 0 {
                     self.instruction_stack
                         .push(Instruction::Repeat(iterations - 1, instructions.clone()));
@@ -167,6 +195,9 @@ impl Mini {
             }
 
             Instruction::Break => loop {
+                // keep removing instructions from the stack until we've removed everything
+                // or encountered and removed a repeat instruction (which will end up being
+                // the most nested repeat)
                 match self.instruction_stack.pop() {
                     None => {
                         self.status = MiniStatus::Done;
@@ -182,16 +213,13 @@ impl Mini {
     /// keep running instructions on the instruction stack until
     /// the state changes from running. the first instruction
     /// should be visit.
-    fn run_until_completion(&mut self, village: &mut Village) {
-        // make sure we don't start at an invalid location
-        if !village.villager_exists(self.location) {
-            self.status = MiniStatus::Lost;
-        }
-
+    pub fn run_until_completion(&mut self, village: &mut Village) {
         while self.status == MiniStatus::Running {
             self.run_instruction(village);
         }
 
+        // if we finished gracefully (i.e. weren't destroyed or anything,
+        // push the finish event to the log)
         if self.status == MiniStatus::Done {
             self.log.push(Event::Finished);
         }
@@ -200,6 +228,8 @@ impl Mini {
 
 #[cfg(test)]
 mod test {
+    // recall in all of these tests that the instruction
+    // stack is read back to front
     use std::vec;
 
     use crate::{
