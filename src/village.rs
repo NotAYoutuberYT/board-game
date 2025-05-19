@@ -245,13 +245,11 @@ impl Village {
     pub fn villager_exists(&self, label: u8) -> bool {
         self.dead_villagers
             .iter()
-            .find(|villager| villager.has_label(label))
-            .is_some()
+            .any(|villager| villager.has_label(label))
             || self
                 .living_villagers
                 .iter()
-                .find(|villager| villager.has_label(label))
-                .is_some()
+                .any(|villager| villager.has_label(label))
     }
 
     /// attempt to get the living villager with the provided label

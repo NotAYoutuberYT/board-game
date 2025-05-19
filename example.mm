@@ -1,7 +1,7 @@
-set 3
+set 9
 repeat {
+    if dead { post register post flare break }
     post register
-    if dead { incr detonate }
     incr
     visit
 }

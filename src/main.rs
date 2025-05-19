@@ -10,6 +10,9 @@ mod parser;
 mod village;
 
 fn main() {
+    // since I've been pretty pressed between this and assignments, I haven't been
+    // able to determine the most enjoyable village setup, so for now it's just these
+    // semi-arbitrary values
     let mut village = Village::new(6, 2, 2, 2);
 
     loop {
@@ -38,7 +41,7 @@ fn main() {
                         .expect("failed to read stdin");
 
                     // if given an invalid path (such as an empty string), just ask again
-                    match PathBuf::from_str(&buffer.trim()) {
+                    match PathBuf::from_str(buffer.trim()) {
                         Ok(path) => path,
                         Err(_) => continue,
                     }
@@ -110,7 +113,7 @@ fn main() {
 
     println!("\nThe village layout was:");
     let mut layout = village.layout();
-    layout.sort_by(|a, b| a.label().cmp(&b.label()));
+    layout.sort_by_key(|villager| villager.label());
     layout.iter().for_each(|villager| {
         println!(
             "{}: {}",

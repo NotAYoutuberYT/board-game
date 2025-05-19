@@ -31,7 +31,7 @@ pub enum Instruction {
     Action(Action),
     Operation(Operation),
     Condition(Condition, Instructions),
-    /// for infinite recursion protetction, decrement u8 each iteration; if it hits zero, break.
+    /// for infinite loop protetction, decrement u8 each iteration; if it hits zero, break.
     Repeat(u8, Instructions),
     Break,
 }
@@ -166,31 +166,31 @@ impl Mini {
                 // if the villager we're at is alive, push the conditional
                 // instructions to the stack
                 if village.living_villager(self.location).is_some() {
-                    self.instruction_stack.extend(instructions.into_iter());
+                    self.instruction_stack.extend(instructions);
                 }
             }
             Instruction::Condition(Condition::VillagerIsDead, instructions) => {
                 // if the villager we're at is dead, push the conditional
                 // instructions to the stack
                 if village.dead_villager(self.location).is_some() {
-                    self.instruction_stack.extend(instructions.into_iter());
+                    self.instruction_stack.extend(instructions);
                 }
             }
             Instruction::Condition(Condition::RegisterEq(value), instructions) => {
                 // if register is equal to the test value, push the conditional instructions to the stack
                 if self.register == value {
-                    self.instruction_stack.extend(instructions.into_iter());
+                    self.instruction_stack.extend(instructions);
                 }
             }
 
             Instruction::Repeat(iterations, instructions) => {
-                // if we're not out of iterations (i.e. we aren't facing infinite recursion),
+                // if we're not out of iterations (i.e. we aren't facing an infinite loop),
                 // put the repeated instructions to the stack along with a copy of this
                 // repeat command with the remaining iteration count decreased by one
                 if iterations != 0 {
                     self.instruction_stack
                         .push(Instruction::Repeat(iterations - 1, instructions.clone()));
-                    self.instruction_stack.extend(instructions.into_iter());
+                    self.instruction_stack.extend(instructions);
                 }
             }
 
@@ -514,7 +514,7 @@ mod test {
     }
 
     #[test]
-    fn infinite_recursion() {
+    fn infinite_loop() {
         let mut village = Village::new_deterministic(vec![Villager::new(VillagerType::Normal, 1)]);
 
         // keep posting the register until it's equal to 4

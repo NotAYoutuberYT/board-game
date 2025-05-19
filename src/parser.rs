@@ -1,4 +1,4 @@
-use std::{fs::File, io::Read, path::PathBuf};
+use std::{ffi::OsStr, fs::File, io::Read, path::PathBuf};
 
 use ariadne::{Color, Label, Report, ReportKind, Source};
 use chumsky::{
@@ -52,8 +52,8 @@ fn instructions<'a>() -> impl Parser<'a, &'a str, Instructions, Err<Rich<'a, cha
             just("decr").to(Operation::Decrement),
             just("set")
                 .then(inline_whitespace())
-                .ignore_then(byte.clone())
-                .map(|n| Operation::SetValue(n)),
+                .ignore_then(byte)
+                .map(Operation::SetValue),
         ))
         .map(Instruction::Operation);
 
@@ -66,8 +66,8 @@ fn instructions<'a>() -> impl Parser<'a, &'a str, Instructions, Err<Rich<'a, cha
                 just("dead").to(Condition::VillagerIsDead),
                 just("eq")
                     .then(inline_whitespace())
-                    .ignore_then(byte.clone())
-                    .map(|n| Condition::RegisterEq(n)),
+                    .ignore_then(byte)
+                    .map(Condition::RegisterEq),
             )))
             // the conditional instructions
             .then_ignore(whitespace())
@@ -102,11 +102,11 @@ pub fn parse_instructions(path: PathBuf) -> Result<Instructions, MMParsingError>
     // get the file name and contents of the provided file
     let file_name = path
         .file_name()
-        .expect("no file name")
+        .unwrap_or(OsStr::new("code.mm"))
         .to_str()
         .expect("should be valid unicode");
     let mut file =
-        File::open(&path).map_err(|_| MMParsingError::FileDoesNotExist(file_name.to_string()))?;
+        File::open(&path).map_err(|_| MMParsingError::FileDoesNotExist(path.clone()))?;
     let mut buffer = String::new();
     file.read_to_string(&mut buffer)
         .map_err(|_| MMParsingError::BadFile)?;
@@ -140,7 +140,7 @@ pub fn parse_instructions(path: PathBuf) -> Result<Instructions, MMParsingError>
 #[derive(Error, Debug)]
 pub enum MMParsingError {
     #[error("`{0}` does not exist")]
-    FileDoesNotExist(String),
+    FileDoesNotExist(PathBuf),
 
     #[error("file is not valid UTF-8")]
     BadFile,
