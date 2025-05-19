@@ -34,7 +34,7 @@ fn main() {
                 // prompt from the command-line
                 None => {
                     print!("Select file containing mini code: ");
-                    std::io::stdout().flush().expect("falied to flush stdout");
+                    std::io::stdout().flush().expect("failed to flush stdout");
                     let mut buffer = String::new();
                     std::io::stdin()
                         .read_line(&mut buffer)

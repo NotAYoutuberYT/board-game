@@ -31,7 +31,7 @@ pub enum Instruction {
     Action(Action),
     Operation(Operation),
     Condition(Condition, Instructions),
-    /// for infinite loop protetction, decrement u8 each iteration; if it hits zero, break.
+    /// for infinite loop protection, decrement u8 each iteration; if it hits zero, break.
     Repeat(u8, Instructions),
     Break,
 }
@@ -60,7 +60,7 @@ pub enum MiniStatus {
 /// a mini, along with all the information it needs to run:
 /// an instruction stack register, log, etc.
 pub struct Mini {
-    /// becuase this is a stack, the "next" instruction is at the end of the vector
+    /// because this is a stack, the "next" instruction is at the end of the vector
     instruction_stack: Instructions,
     register: u8,
 
@@ -145,7 +145,7 @@ impl Mini {
             Instruction::Action(Action::Visit) => self.visit_villager(village, self.register),
 
             Instruction::Operation(Operation::Increment) => {
-                // destory the mini if we'd encounter overflow
+                // destroy the mini if we'd encounter overflow
                 if self.register == u8::MAX {
                     self.status = MiniStatus::Destroyed
                 } else {
@@ -395,7 +395,7 @@ mod test {
     }
 
     #[test]
-    fn complets_correctly() {
+    fn completes_correctly() {
         let villagers: Vec<LivingVillager> = (1..=4)
             .map(|i| Villager::new(VillagerType::Normal, i))
             .collect();
@@ -521,8 +521,8 @@ mod test {
         let mut mini = Mini::new(
             1,
             vec![Instruction::Repeat(
-                10, // this should usually be u8, but this makes the test more convienent
-                vec![Instruction::Action(Action::PostFlare)],
+                10, // this should usually be u8::Max, but this makes the test faster
+                vec![],
             )],
             &village,
         );

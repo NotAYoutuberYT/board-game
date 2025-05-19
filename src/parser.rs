@@ -19,7 +19,7 @@ fn instructions<'a>() -> impl Parser<'a, &'a str, Instructions, Err<Rich<'a, cha
     // unwieldy. it's not too bad, though. all the functions correspond to something
     // that can be matched (some text, whitespace, whatever), and then things like
     // then or choice are used to combine those matches. things like map are
-    // then used to convert matches to actual values. see the crate's documenation
+    // then used to convert matches to actual values. see the crate's documentation
     // for more details.
 
     // condition and repeat both recursively parse instructions,
@@ -154,7 +154,7 @@ mod test {
     use std::u8;
 
     // given how little time I have for this project, I'm not worried about comprehensive
-    // tests here. given the declaritive nature of the parsing crate I'm using, I'm
+    // tests here. given the declarative nature of the parsing crate I'm using, I'm
     // not too worried about being super comprehensive with my testing
     use chumsky::Parser;
 

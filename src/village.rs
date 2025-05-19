@@ -302,7 +302,7 @@ impl Village {
     }
 }
 
-/// reperesents anything that can go wrong with village operations.
+/// represents anything that can go wrong with village operations.
 /// is small right now, but could grow if more features are added.
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum VillageError {
